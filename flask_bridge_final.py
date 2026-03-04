@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-flask_bridge_final.py  (Wuyun Bridge v7.1)
+flask_bridge_final.py  (Wuyun Bridge v7.2)
 """
 
 import os
@@ -91,22 +91,52 @@ def call_jetson(payload: dict):
 def call_anythingllm(payload: dict):
     if not ANYTHINGLLM_API_KEY:
         return jsonify({"error": {"message": "ANYTHINGLLM_API_KEY 未設定。", "type": "config_error"}}), 500
-    url = ANYTHINGLLM_URL
-    payload = dict(payload)
-    payload["model"] = ANYTHINGLLM_MODEL
+
+    # 從 OpenAI 格式的 messages 陣列取出最後一則 user 訊息
+    messages = payload.get("messages", [])
+    user_message = ""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            user_message = msg.get("content", "")
+            break
+
+    anythingllm_payload = {
+        "message": user_message,
+        "mode": "chat"
+    }
+
     headers = {
         "Authorization": f"Bearer {ANYTHINGLLM_API_KEY}",
-        "x-api-key": ANYTHINGLLM_API_KEY,
+        "Content-Type": "application/json",
     }
-    print(f"[Bridge] → AnythingLLM {ANYTHINGLLM_MODEL} @ {url}")
-    return _proxy_openai_like(url, payload, headers_extra=headers, timeout=(10, 300))
+
+    print(f"[Bridge] → AnythingLLM workspace chat @ {ANYTHINGLLM_URL}")
+
+    try:
+        resp = requests.post(ANYTHINGLLM_URL, headers=headers, json=anythingllm_payload, timeout=(10, 300))
+        data = resp.json()
+        reply = data.get("textResponse") or data.get("text") or ""
+        openai_resp = {
+            "id": "chatcmpl-anyllm",
+            "object": "chat.completion",
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": reply},
+                "finish_reason": "stop"
+            }]
+        }
+        return jsonify(openai_resp)
+    except Exception as e:
+        print(f"[Bridge] AnythingLLM 呼叫失敗：{e}")
+        traceback.print_exc()
+        return jsonify({"error": {"message": f"AnythingLLM exception: {e}", "type": "anythingllm_error"}}), 500
 
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "ok": True,
-        "bridge": "wuyun-bridge-v7.1",
+        "bridge": "wuyun-bridge-v7.2",
         "openai_key_set": bool(OPENAI_API_KEY),
         "jetson_url": JETSON_CHAT_URL,
         "anythingllm_url": ANYTHINGLLM_URL,
