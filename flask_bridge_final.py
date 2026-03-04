@@ -119,6 +119,7 @@ def call_anythingllm(payload: dict):
         openai_resp = {
             "id": "chatcmpl-anyllm",
             "object": "chat.completion",
+            "model": "wuyun-rag",
             "choices": [{
                 "index": 0,
                 "message": {"role": "assistant", "content": reply},
