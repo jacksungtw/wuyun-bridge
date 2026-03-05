@@ -157,6 +157,17 @@ def list_models():
     return jsonify({"object": "list", "data": data})
 
 
+@app.route("/v1/embeddings", methods=["POST"])
+@app.route("/embeddings", methods=["POST"])
+def embeddings():
+    if not OPENAI_API_KEY:
+        return jsonify({"error": {"message": "OPENAI_API_KEY 未設定。", "type": "config_error"}}), 500
+    url = f"{OPENAI_BASE_URL.rstrip('/')}/embeddings"
+    payload = _safe_get_json()
+    print(f"[Bridge] → OpenAI embeddings")
+    return _proxy_openai_like(url, payload, headers_extra={"Authorization": f"Bearer {OPENAI_API_KEY}"}, timeout=(10, 60))
+
+
 @app.route("/v1/chat/completions", methods=["POST"])
 @app.route("/chat/completions", methods=["POST"])
 def chat_completions():
