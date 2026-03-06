@@ -102,7 +102,7 @@ def call_anythingllm(payload: dict):
 
     anythingllm_payload = {
         "message": user_message,
-        "mode": "chat"
+        "mode": "query"
     }
 
     headers = {
