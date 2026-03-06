@@ -116,17 +116,36 @@ def call_anythingllm(payload: dict):
         resp = requests.post(ANYTHINGLLM_URL, headers=headers, json=anythingllm_payload, timeout=(10, 300))
         data = resp.json()
         reply = data.get("textResponse") or data.get("text") or ""
-        openai_resp = {
-            "id": "chatcmpl-anyllm",
-            "object": "chat.completion",
-            "model": "wuyun-rag",
-            "choices": [{
-                "index": 0,
-                "message": {"role": "assistant", "content": reply},
-                "finish_reason": "stop"
-            }]
-        }
-        return jsonify(openai_resp)
+
+        # 回傳 SSE streaming 格式，相容 Chatbot UI
+        def generate():
+            import json as _json
+            chunk = {
+                "id": "chatcmpl-anyllm",
+                "object": "chat.completion.chunk",
+                "model": "wuyun-rag",
+                "choices": [{
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": reply},
+                    "finish_reason": None
+                }]
+            }
+            yield f"data: {_json.dumps(chunk)}\n\n"
+            stop_chunk = {
+                "id": "chatcmpl-anyllm",
+                "object": "chat.completion.chunk",
+                "model": "wuyun-rag",
+                "choices": [{
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop"
+                }]
+            }
+            yield f"data: {_json.dumps(stop_chunk)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return Response(generate(), content_type="text/event-stream")
+
     except Exception as e:
         print(f"[Bridge] AnythingLLM 呼叫失敗：{e}")
         traceback.print_exc()
