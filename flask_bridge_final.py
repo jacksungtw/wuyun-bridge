@@ -111,7 +111,8 @@ def call_anythingllm(payload: dict):
     }
 
     print(f"[Bridge] → AnythingLLM workspace chat @ {ANYTHINGLLM_URL}")
-
+    print(f"[Bridge] AnythingLLM payload: {anythingllm_payload}")
+    
     try:
         resp = requests.post(ANYTHINGLLM_URL, headers=headers, json=anythingllm_payload, timeout=(10, 300))
         data = resp.json()
