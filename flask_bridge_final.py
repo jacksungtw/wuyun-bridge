@@ -171,6 +171,10 @@ def health():
 def list_models():
     data = [
         {"id": "gpt-4o", "object": "model"},
+        {"id": "gpt-5.4", "object": "model"},
+        {"id": "gpt-5.2", "object": "model"},
+        {"id": "gpt-5.1", "object": "model"},
+        {"id": "gpt-5.0", "object": "model"},
         {"id": "deepseek", "object": "model"},
         {"id": "wuyun-rag", "object": "model"},
     ]
