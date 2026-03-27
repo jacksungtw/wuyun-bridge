@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "gunicorn flask_bridge_final:app --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 300",
+    "startCommand": "python start.py",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
