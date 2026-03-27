@@ -13,6 +13,7 @@ from flask import Flask, request, jsonify, Response
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip()
+LEGAL_SERVER_URL = os.getenv("LEGAL_SERVER_URL", "https://legal-server-production.up.railway.app/legal/run").strip()
 
 JETSON_CHAT_URL = os.getenv(
     "JETSON_CHAT_URL",
@@ -88,6 +89,54 @@ def call_jetson(payload: dict):
         return call_openai(fallback)
 
 
+def call_legal(payload: dict):
+    messages = payload.get("messages", [])
+    text = ""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            text = msg.get("content", "")
+            break
+
+    try:
+        resp = requests.post(
+            LEGAL_SERVER_URL,
+            json={"cmd": "triage-nda", "text": text, "locale": "zh-TW"},
+            timeout=(10, 120),
+        )
+        data = resp.json()
+    except Exception as e:
+        return jsonify({"error": {"message": f"legal-server error: {e}", "type": "legal_error"}}), 502
+
+    risk = data.get("risk_level", "unknown").upper()
+    summary = data.get("summary", "")
+    issues = data.get("issues", [])
+    recommendation = data.get("recommendation", "")
+    marker = data.get("marker", "")
+
+    lines = [f"## NDA 風險評估結果\n", f"**風險等級：{risk}**\n", f"{summary}\n"]
+    if issues:
+        lines.append("\n### 問題條款\n")
+        for i in issues:
+            lines.append(f"- **[{i.get('severity','').upper()}] {i.get('clause','')}**：{i.get('description','')}")
+    if recommendation:
+        lines.append(f"\n### 建議\n{recommendation}")
+    if marker:
+        lines.append(f"\n\n---\n{marker}")
+
+    content = "\n".join(lines)
+
+    def generate():
+        chunk = {"id": "chatcmpl-legal", "object": "chat.completion.chunk", "model": "legal-nda",
+                 "choices": [{"index": 0, "delta": {"role": "assistant", "content": content}, "finish_reason": None}]}
+        yield f"data: {json.dumps(chunk)}\n\n"
+        stop = {"id": "chatcmpl-legal", "object": "chat.completion.chunk", "model": "legal-nda",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
+        yield f"data: {json.dumps(stop)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return Response(generate(), content_type="text/event-stream")
+
+
 def call_anythingllm(payload: dict):
     if not ANYTHINGLLM_API_KEY:
         return jsonify({"error": {"message": "ANYTHINGLLM_API_KEY 未設定。", "type": "config_error"}}), 500
@@ -157,7 +206,7 @@ def call_anythingllm(payload: dict):
 def health():
     return jsonify({
         "ok": True,
-        "bridge": "wuyun-bridge-v7.2",
+        "bridge": "wuyun-bridge-v7.3",
         "openai_key_set": bool(OPENAI_API_KEY),
         "jetson_url": JETSON_CHAT_URL,
         "anythingllm_url": ANYTHINGLLM_URL,
@@ -177,6 +226,7 @@ def list_models():
         {"id": "gpt-5.0", "object": "model"},
         {"id": "deepseek", "object": "model"},
         {"id": "wuyun-rag", "object": "model"},
+        {"id": "legal-nda", "object": "model"},
     ]
     return jsonify({"object": "list", "data": data})
 
@@ -215,6 +265,8 @@ def chat_completions():
             return call_jetson(payload)
         if m in ["wuyun-rag", "anythingllm", "anythingllm-rag", "rag"]:
             return call_anythingllm(payload)
+        if m in ["legal-nda", "legal", "triage-nda"]:
+            return call_legal(payload)
         return call_openai(payload)
     except Exception as e:
         print("[Bridge] 未預期錯誤：", e)

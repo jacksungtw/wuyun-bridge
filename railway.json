@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "startCommand": "python -m uvicorn bridge:app --host 0.0.0.0 --port $PORT",
+    "startCommand": "gunicorn flask_bridge_final:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
