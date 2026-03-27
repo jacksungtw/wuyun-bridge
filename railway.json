@@ -4,7 +4,6 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "startCommand": "sh -c 'gunicorn flask_bridge_final:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300'",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
