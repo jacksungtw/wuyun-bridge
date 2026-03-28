@@ -285,6 +285,12 @@ def chat_completions():
         return jsonify({"error": {"message": f"Bridge exception: {e}", "type": "bridge_internal_error"}}), 500
 
 
+@app.errorhandler(404)
+def not_found(e):
+    print(f"[Bridge] 404: {request.method} {request.path}")
+    return jsonify({"error": {"message": f"Not found: {request.path}", "type": "not_found"}}), 404
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
