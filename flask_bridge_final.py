@@ -206,7 +206,7 @@ def call_anythingllm(payload: dict):
 def health():
     return jsonify({
         "ok": True,
-        "bridge": "wuyun-bridge-v7.3",
+        "bridge": "wuyun-bridge-v7.4",
         "openai_key_set": bool(OPENAI_API_KEY),
         "jetson_url": JETSON_CHAT_URL,
         "anythingllm_url": ANYTHINGLLM_URL,
@@ -215,20 +215,31 @@ def health():
     })
 
 
+MODELS = [
+    {"id": "gpt-4o", "object": "model"},
+    {"id": "gpt-5.4", "object": "model"},
+    {"id": "gpt-5.2", "object": "model"},
+    {"id": "gpt-5.1", "object": "model"},
+    {"id": "gpt-5.0", "object": "model"},
+    {"id": "deepseek", "object": "model"},
+    {"id": "wuyun-rag", "object": "model"},
+    {"id": "legal-nda", "object": "model"},
+]
+
+
 @app.route("/v1/models", methods=["GET"])
 @app.route("/models", methods=["GET"])
 def list_models():
-    data = [
-        {"id": "gpt-4o", "object": "model"},
-        {"id": "gpt-5.4", "object": "model"},
-        {"id": "gpt-5.2", "object": "model"},
-        {"id": "gpt-5.1", "object": "model"},
-        {"id": "gpt-5.0", "object": "model"},
-        {"id": "deepseek", "object": "model"},
-        {"id": "wuyun-rag", "object": "model"},
-        {"id": "legal-nda", "object": "model"},
-    ]
-    return jsonify({"object": "list", "data": data})
+    return jsonify({"object": "list", "data": MODELS})
+
+
+@app.route("/v1/models/<model_id>", methods=["GET"])
+@app.route("/models/<model_id>", methods=["GET"])
+def get_model(model_id):
+    for m in MODELS:
+        if m["id"] == model_id:
+            return jsonify(m)
+    return jsonify({"error": {"message": f"Model '{model_id}' not found", "type": "invalid_request_error"}}), 404
 
 
 @app.route("/v1/embeddings", methods=["POST"])
