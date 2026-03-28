@@ -32,6 +32,22 @@ MAX_BODY_BYTES = int(os.getenv("BRIDGE_MAX_BODY_BYTES", "5242880"))
 app = Flask(__name__)
 
 
+class _PathNormalizer:
+    """Strip spaces from PATH_INFO before Flask routing (handles chatbot-ui URL quirks)."""
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if " " in path:
+            fixed = "/" + "/".join(p for p in path.replace(" ", "").split("/") if p)
+            print(f"[Bridge] PathNormalizer: '{path}' → '{fixed}'")
+            environ["PATH_INFO"] = fixed
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = _PathNormalizer(app.wsgi_app)
+
+
 def _limit_request_size() -> Tuple[bool, Optional[Response]]:
     length = request.content_length or 0
     if length > MAX_BODY_BYTES:
